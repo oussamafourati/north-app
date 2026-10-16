@@ -12,7 +12,7 @@ import { relations } from "drizzle-orm";
 
 export type OrderStatus = "pending" | "paid" | "failed";
 export type UserRole = "customer" | "support" | "admin";
-export type ChechoutSessionLine = {
+export type CheckoutSessionLine = {
   productId: string;
   quantity: number;
   unitPriceCents: number;
@@ -55,7 +55,7 @@ export const checkoutSessions = pgTable("checkout_sessions", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   polarCheckoutId: text("polar_checkout_id").unique(),
-  lines: jsonb("lines").$type<ChechoutSessionLine[]>().notNull(),
+  lines: jsonb("lines").$type<CheckoutSessionLine[]>().notNull(),
   totalCents: integer("total_cents").notNull(),
   currency: text("currency").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
