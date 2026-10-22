@@ -25,7 +25,7 @@ function Navbar() {
 
   // todo: handle cartCount
   const cartCount = useCart((s) =>
-    s.items.reduce((n, line) => n + line.quantiy, 0),
+    s.items.reduce((n, line) => n + line.quantity, 0),
   );
 
   return (
