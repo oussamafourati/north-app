@@ -6,8 +6,8 @@ const base = typeof raw === "string" ? raw.replace(/\/+$/, "") : ""; // remove t
 // this is an authenticated fetch req that we use to send reqs to our api
 export async function apiFetch(path, opts = {}) {
   const { getToken, method = "GET", body } = opts;
-
   const headers = { "Content-Type": "application/json" };
+
   if (getToken) {
     const token = await getToken();
     if (token) {
@@ -39,6 +39,7 @@ export async function apiFetch(path, opts = {}) {
   }
 
   const data = await res.json();
+
   Sentry.addBreadcrumb({
     category: "api",
     message: `${method} ${path}`,

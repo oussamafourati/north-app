@@ -44,12 +44,11 @@ export async function createCheckout(
 
     // polar access token is required
     if (!env.POLAR_ACCESS_TOKEN) {
-      res.status(503).json({ error: "Payment are not configured" });
+      res.status(503).json({ error: "Payments are not configured" });
       return;
     }
 
     const localUser = await getLocalUser(userId);
-
     if (!localUser) {
       res.status(503).json({ error: "Account not synced yet" });
       return;
@@ -57,7 +56,7 @@ export async function createCheckout(
 
     const ids = parsed.data.items.map((i) => i.productId);
 
-    // load every cart product that exists, is active, a,d matches the IDs we asked for
+    // load every cart product that exists, is active, and matches the IDs we asked for.
     const prodRows = await db
       .select()
       .from(products)
@@ -71,6 +70,7 @@ export async function createCheckout(
     const byId = new Map(prodRows.map((p) => [p.id, p]));
     let totalCents = 0;
     const lines: CheckoutSessionLine[] = [];
+
     for (const line of parsed.data.items) {
       const p = byId.get(line.productId)!;
       totalCents += p.priceCents * line.quantity;
@@ -80,9 +80,11 @@ export async function createCheckout(
         unitPriceCents: p.priceCents,
       });
     }
+
     if (totalCents < 10) {
       res.status(400).json({
-        error: "Total below Polar minimum (e.g USD requires at least 10 cents",
+        error:
+          "Total below Polar minimum (e.g. USD requires at least 10 cents)",
       });
       return;
     }
@@ -124,7 +126,7 @@ export async function createCheckout(
       .where(eq(checkoutSessions.id, session.id));
 
     res.json({ checkoutUrl: checkout.url });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 }

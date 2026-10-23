@@ -1,6 +1,5 @@
-import type { Request, Response, NextFunction } from "express";
-import { getEnv } from "../lib/env";
 import { getAuth } from "@clerk/express";
+import type { NextFunction, Response, Request } from "express";
 import { getLocalUser } from "../lib/users";
 import { isStaff } from "../lib/roles";
 import { db } from "../db";
@@ -11,6 +10,7 @@ import {
   streamChatDisplayName,
   streamUserId,
 } from "../lib/stream";
+import { getEnv } from "../lib/env";
 
 const env = getEnv();
 
@@ -21,7 +21,7 @@ export async function listOrders(
 ) {
   try {
     const { userId, isAuthenticated } = getAuth(req);
-    if (!userId || !isAuthenticated) {
+    if (!isAuthenticated || !userId) {
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
@@ -42,6 +42,7 @@ export async function listOrders(
 
     const orderIds = rows.map((r) => r.id);
     const previewByOrder = new Map();
+
     if (orderIds.length > 0) {
       const itemRows = await db
         .select({
@@ -72,6 +73,7 @@ export async function listOrders(
       ...o,
       previewItems: previewByOrder.get(o.id) ?? [],
     }));
+
     res.json({ orders: ordersPayload });
   } catch (e) {
     next(e);
@@ -85,7 +87,7 @@ export async function getOrder(
 ) {
   try {
     const { userId, isAuthenticated } = getAuth(req);
-    if (!userId || !isAuthenticated) {
+    if (!isAuthenticated || !userId) {
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
@@ -137,7 +139,7 @@ export async function createStreamChannel(
 ) {
   try {
     const { userId, isAuthenticated } = getAuth(req);
-    if (!userId || !isAuthenticated) {
+    if (!isAuthenticated || !userId) {
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
@@ -155,6 +157,7 @@ export async function createStreamChannel(
       .from(orders)
       .where(eq(orders.id, req.params.id as string))
       .limit(1);
+
     if (!order) {
       res.status(404).json({ error: "Not found" });
       return;

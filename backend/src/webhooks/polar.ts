@@ -1,8 +1,8 @@
-import { Request, Response } from "express";
-import { getEnv } from "../lib/env";
-import { checkoutSessions, orderItems, orders } from "../db/schema";
+import type { Request, Response } from "express";
+import { getEnv } from "../lib/env.js";
+import { checkoutSessions, orderItems, orders } from "../db/schema.js";
 import { eq } from "drizzle-orm";
-import { db } from "../db/index";
+import { db } from "../db/index.js";
 import { Webhook } from "standardwebhooks";
 
 function headerString(headers: Request["headers"], name: string) {
@@ -17,7 +17,7 @@ function checkoutSessionIdFromMetadata(order: Record<string, unknown>) {
   return typeof sessionId === "string" ? sessionId : undefined;
 }
 
-async function alredyPaid(polarOrderId?: string, checkoutId?: string) {
+async function alreadyPaid(polarOrderId?: string, checkoutId?: string) {
   if (polarOrderId) {
     const [row] = await db
       .select()
@@ -26,7 +26,6 @@ async function alredyPaid(polarOrderId?: string, checkoutId?: string) {
       .limit(1);
     if (row?.status === "paid") return true;
   }
-
   if (checkoutId) {
     const [row] = await db
       .select()
@@ -43,7 +42,6 @@ async function fulfillCheckoutSession(
   polarOrderId: string | undefined,
   checkoutId: string | undefined,
 ) {
-  // transaction
   return await db.transaction(async (tx) => {
     const [session] = await tx
       .select()
@@ -63,6 +61,7 @@ async function fulfillCheckoutSession(
         ...(polarOrderId ? { polarOrderId } : {}),
       })
       .returning();
+
     if (session.lines.length) {
       await tx.insert(orderItems).values(
         session.lines.map((line) => ({
@@ -81,6 +80,10 @@ async function fulfillCheckoutSession(
 }
 
 export async function polarWebhookHandler(req: Request, res: Response) {
+  console.log("[Polar webhook] Request received");
+  console.log("[Polar webhook] Raw body is Buffer:", Buffer.isBuffer(req.body));
+  console.log("[Polar webhook] Webhook ID:", req.headers["webhook-id"]);
+
   const env = getEnv();
 
   try {
@@ -109,40 +112,49 @@ export async function polarWebhookHandler(req: Request, res: Response) {
       "webhook-timestamp": ts,
       "webhook-signature": sig,
     });
+    console.log("[Polar webhook] Signature verified");
     const event = JSON.parse(raw.toString("utf8")) as {
       type: string;
       data?: Record<string, unknown>;
     };
+    console.log("[Polar webhook] Event type:", event.type);
 
     if (event.type === "order.paid" && event.data) {
       const data = event.data;
+      console.log("[Polar webhook] Paid order data:", {
+        orderId: data.id,
+        checkoutId: data.checkout_id,
+        metadata: data.metadata,
+      });
+
       const polarOrderId = typeof data.id === "string" ? data.id : undefined;
       const checkoutId =
         typeof data.checkout_id === "string" ? data.checkout_id : undefined;
 
-      if (await alredyPaid(polarOrderId, checkoutId)) {
+      if (await alreadyPaid(polarOrderId, checkoutId)) {
         res.json({ ok: true, duplicate: true });
         return;
       }
 
       const sessionId = checkoutSessionIdFromMetadata(data);
-
+      console.log("[Polar webhook] Local checkout session ID:", sessionId);
       if (sessionId) {
         const ok = await fulfillCheckoutSession(
           sessionId,
           polarOrderId,
           checkoutId,
         );
-
+        console.log("[Polar webhook] Fulfillment result:", ok);
         if (ok) {
           res.json({ ok: true });
           return;
         }
 
-        if (await alredyPaid(polarOrderId, checkoutId)) {
+        if (await alreadyPaid(polarOrderId, checkoutId)) {
           res.json({ ok: true, duplicate: true });
           return;
         }
+
         console.error("Polar order.paid: could not fulfill checkout session", {
           sessionId,
           checkoutId,
@@ -154,8 +166,8 @@ export async function polarWebhookHandler(req: Request, res: Response) {
     }
 
     res.json({ ok: true });
-  } catch (error) {
-    console.error("Polar webhool error", error);
+  } catch (err) {
+    console.error("Polar webhook error", err);
     res.status(400).json({ error: "Invalid webhook" });
   }
 }
