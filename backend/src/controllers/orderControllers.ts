@@ -176,7 +176,30 @@ export async function createStreamChannel(
       return;
     }
 
+    // const streamChatUserId = streamUserId(userId);
+
+    // await server.upsertUser({
+    //   id: streamChatUserId,
+    //   name: streamChatDisplayName(
+    //     localUser.role,
+    //     localUser.displayName,
+    //     localUser.email,
+    //   ),
+    // });
+
+    // const channelId = `order-${order.id}`;
+    // const channel = server.channel("messaging", channelId, {
+    //   name: `Support · order ${order.id.slice(0, 8)}`,
+    //   created_by_id: streamChatUserId,
+    // });
+
+    // await channel.create();
+
+    // await channel.addMembers([streamChatUserId]);
+
     const streamChatUserId = streamUserId(userId);
+
+    console.info("[Stream Chat] upsertUser started");
 
     await server.upsertUser({
       id: streamChatUserId,
@@ -187,15 +210,26 @@ export async function createStreamChannel(
       ),
     });
 
+    console.info("[Stream Chat] upsertUser succeeded");
+
     const channelId = `order-${order.id}`;
+
     const channel = server.channel("messaging", channelId, {
       name: `Support · order ${order.id.slice(0, 8)}`,
       created_by_id: streamChatUserId,
     });
 
+    console.info("[Stream Chat] channel.create started");
+
     await channel.create();
 
+    console.info("[Stream Chat] channel.create succeeded");
+
+    console.info("[Stream Chat] addMembers started");
+
     await channel.addMembers([streamChatUserId]);
+
+    console.info("[Stream Chat] addMembers succeeded");
 
     res.json({
       channelType: "messaging",

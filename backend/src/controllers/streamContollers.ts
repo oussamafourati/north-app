@@ -54,7 +54,7 @@ export async function createStreamToken(
 
     const token = server.createToken(sid);
 
-    res.json({ token, apiKey: env.STREAM_API_KEY, userId: sid });
+    res.json({ token, apiKey: env.STREAM_API_KEY, userId: sid, name });
   } catch (error) {
     next(error);
   }
